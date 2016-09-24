@@ -42,7 +42,7 @@ void* processConnection(void *arg) {
 	int sockfd = *(int *)arg;
 	if (DEBUG)
 		cout << "We are in the thread with fd = " << sockfd << endl;
-s
+
 	int connectionActive = 1;
 	int seenMAIL = 0;
 	int seenRCPT = 0;
@@ -170,18 +170,22 @@ int main(int argc, char **argv) {
 	while (1) {
 		if (DEBUG)
 			cout << "Calling accept() in master thread." << endl;
-		int connfd = -1;
+			
+		int* connfd = new int;
+		*connfd = -1;
 		
+		//int connfd = -1;
+			
 		cout << "start" << endl;
 
-		if ((connfd = accept(listenfd, (sockaddr *) NULL, NULL)) < 0) {
+		if ((*connfd = accept(listenfd, (sockaddr *) NULL, NULL)) < 0) {
 			cout << "accept() failed: " << strerror(errno) <<  endl;
 			exit(-1);
 		}
 		cout << "connfd = " << connfd << endl;
 		
-
-	
+		
+		
 		if (DEBUG)
 			cout << "Spawing new thread to handled connect on fd=" << connfd << endl;
 
