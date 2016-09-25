@@ -27,6 +27,18 @@ void writeCommand(int sockfd, string message) {
 	return;
 }
 
+string readData(int sockfd){    
+    string line = "";
+    string data = "";
+    line = readCommand(sockfd);
+    while(line.substr(0, line.size()-2) != "."){
+        data.append(line);
+        cout << "Another Line" << endl;
+        line = readCommand(sockfd);
+    }
+    return data;
+}
+
 // ***************************************************************************
 // * Parse the command.
 // *  Read the string and find the command, returning the number we assoicated
@@ -94,6 +106,7 @@ void* processConnection(void *arg) {
 		string cmdString = inString.substr(0, pos);
 		string argString = inString.substr(pos+1, inString.length()-pos);
 		string eAdress = argString.substr(1, argString.length() - 2);
+		string data = "";
 		
 		//string cmdString = readCommand(sockfd);
 		
@@ -116,38 +129,44 @@ void* processConnection(void *arg) {
 			cout << cmdString << endl;
 			break;
 		case MAIL :
-			writeCommand(sockfd, string("Your Adress: ") + eAdress + string("\n"));
+			//writeCommand(sockfd, string("Your Adress: ") + eAdress + string("\n"));
 			seenMAIL = 1;
 			reversePath = eAdress;
 			//Reset paths
 	        seenRCPT = 0;
 	        seenDATA = 0;
 			forwardPath = "";
+	        //*messageBuffer = NULL;
 			cout << cmdString << endl;
 			break;
 		case RCPT :
-		    writeCommand(sockfd, string("Your're Sending To: ") + eAdress + string("\n"));
+		    //writeCommand(sockfd, string("Your're Sending To: ") + eAdress + string("\n"));
 			seenRCPT = 1;
-			forwardPath = eAdress;
+			forwardPath = eAdress;  
 			cout << cmdString << endl;
+			writeCommand(sockfd, string("Your're Sending To: ") + eAdress + string("\n"));
 			break;
 		case DATA :
-		    
+		    data = readData(sockfd);
 			cout << cmdString << endl;
+			cout << data << endl;
 			break;
 		case RSET :
+			//Reset paths
 		    seenMAIL = 0;
 			forwardPath = "";
-			//Reset paths
 	        seenRCPT = 0;
 	        seenDATA = 0;
 			reversePath = "";
+	        //*messageBuffer = NULL;
 			cout << cmdString << endl;
 			break;
 		case NOOP :
 			cout << cmdString << endl;
 			break;
 		case QUIT :
+			writeCommand(sockfd, "OK\n");
+			connectionActive = 0;
 			cout << cmdString << endl;
 			break;
 		default :
@@ -155,6 +174,8 @@ void* processConnection(void *arg) {
 			break;
 		}
 	}
+	
+	close(sockfd);
 
 	if (DEBUG)
 		cout << "Thread terminating" << endl;
