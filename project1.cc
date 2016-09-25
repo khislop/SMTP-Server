@@ -1,7 +1,7 @@
 #include "includes.h"
 
 #define MAXLINE 1024
-#define PORT 9315
+#define PORT 9316
 #define DEBUG 1
 
 // ***************************************************************************
@@ -10,11 +10,12 @@
 // ***************************************************************************
 string readCommand(int sockfd) { 
 	int count = 400;
-	char* buf[count];
-	read(sockfd, *buf, count);
-	//return *buf;
-	string input = string(*buf);
-	return input;
+	char* buf = new char[count];
+	read(sockfd, buf, count);
+	string temp = string(buf);
+	string t = temp.substr(0, temp.size()-2);
+	//cout << "LOOK AT THIS *** \"" << t << "\"" << endl;
+	return t;
 }
 
 // ***************************************************************************
@@ -22,7 +23,27 @@ string readCommand(int sockfd) {
 // *  Read the string and find the command, returning the number we assoicated
 // *  with that command.
 // ***************************************************************************
-int parseCommand(string commandString) { }
+int parseCommand(string commandString) {
+	//cout << "In the parseCommand function: \"" << commandString << "\"" << endl;
+	//cout << "The math: " << (commandString == string("TEST")) << endl;
+	if(commandString == "HELO")
+		return 1;
+	if(commandString == "MAIL")
+		return 2;
+	if(commandString == "RCPT")
+		return 3;
+	if(commandString == "DATA")
+		return 4;
+	if(commandString == "RSET")
+		return 5;
+	if(commandString == "NOOP")
+		return 6;
+	if(commandString == "QUIT")
+		return 7;
+	
+	return -1;
+		
+}
 
 // ***************************************************************************
 // * processConnection()
@@ -59,34 +80,42 @@ void* processConnection(void *arg) {
 		// *******************************************************
 		string cmdString = readCommand(sockfd);
 		
-		//cout << cmdString << endl;
+		//cout << "cmd string = " << cmdString << endl;
 
 		// *******************************************************
 		// * Parse the command.
 		// *******************************************************
 		int command = parseCommand(cmdString);
+		
+		//cout << "command = " << command << endl;
 
 		// *******************************************************
 		// * Act on each of the commands we need to implement. 
 		// *******************************************************
 		switch (command) {
 		case HELO :
-			cout << command << endl;
+			cout << cmdString << endl;
 			break;
 		case MAIL :
+			cout << cmdString << endl;
 			break;
 		case RCPT :
+			cout << cmdString << endl;
 			break;
 		case DATA :
+			cout << cmdString << endl;
 			break;
 		case RSET :
+			cout << cmdString << endl;
 			break;
 		case NOOP :
+			cout << cmdString << endl;
 			break;
 		case QUIT :
+			cout << cmdString << endl;
 			break;
 		default :
-			//cout << "Unknown command (" << command << ")" << endl;
+			cout << "Unknown command (" << cmdString<< ")" << endl;
 			break;
 		}
 	}
@@ -129,6 +158,7 @@ int main(int argc, char **argv) {
 	servaddr.sin_family = PF_INET;
 	servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
 	servaddr.sin_port = htons(PORT);
+
 
     
 
@@ -176,13 +206,13 @@ int main(int argc, char **argv) {
 		
 		//int connfd = -1;
 			
-		cout << "start" << endl;
+		//cout << "start" << endl;
 
 		if ((*connfd = accept(listenfd, (sockaddr *) NULL, NULL)) < 0) {
 			cout << "accept() failed: " << strerror(errno) <<  endl;
 			exit(-1);
 		}
-		cout << "connfd = " << connfd << endl;
+		//cout << "connfd = " << *connfd << endl;
 		
 		
 		
@@ -190,7 +220,7 @@ int main(int argc, char **argv) {
 			cout << "Spawing new thread to handled connect on fd=" << connfd << endl;
 
 		pthread_t* threadID = new pthread_t;
-		pthread_create(threadID, NULL, processConnection, (void *)&connfd);
+		pthread_create(threadID, NULL, processConnection, (void *)connfd);
 		threads.insert(threadID);
 	}
 }
