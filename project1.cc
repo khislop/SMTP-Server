@@ -1,7 +1,7 @@
 #include "includes.h"
 
 #define MAXLINE 1024
-#define PORT 9316
+#define PORT 9315
 #define DEBUG 1
 
 // ***************************************************************************
@@ -18,6 +18,16 @@ string readCommand(int sockfd) {
 	return t;
 }
 
+string readLine(int sockfd) { 
+	int count = 400;
+	char* buf = new char[count];
+	read(sockfd, buf, count);
+	string t = string(buf);
+	//string t = temp.substr(0, temp.size()-2);
+	//cout << "LOOK AT THIS *** \"" << t << "\"" << endl;
+	return t;
+}
+
 void writeCommand(int sockfd, string message) { 
 	int count = message.length();
 	char* buf = new char[count];
@@ -30,14 +40,31 @@ void writeCommand(int sockfd, string message) {
 string readData(int sockfd){    
     string line = "";
     string data = "";
-    line = readCommand(sockfd);
+    line = readLine(sockfd);
     while(line.substr(0, line.size()-2) != "."){
         data.append(line);
         cout << "Another Line" << endl;
-        line = readCommand(sockfd);
+        line = readLine(sockfd);
     }
     return data;
 }
+
+string getAdressName(string adress){
+
+	int position = adress.find('@');
+	string name = adress.substr(1, position - 1);
+	return name;
+}
+
+void writeToFile(string adress, string data){
+	ofstream output;
+    
+	//Write to file
+	string name = getAdressName(adress);
+	output.open(name.c_str(), std::ios_base::app);
+	output << "This is a test" << endl;
+}
+
 
 // ***************************************************************************
 // * Parse the command.
@@ -93,6 +120,10 @@ void* processConnection(void *arg) {
 	string forwardPath = "";
 	string reversePath = "";
 	char *messageBuffer = NULL;
+	
+	//Connected successfully
+	writeCommand(sockfd, "220 \n");
+	
 	while (connectionActive) {
 		
 		//cout << sockfd << endl;
@@ -107,6 +138,11 @@ void* processConnection(void *arg) {
 		string argString = inString.substr(pos+1, inString.length()-pos);
 		string eAdress = argString.substr(1, argString.length() - 2);
 		string data = "";
+		string date = "TEST DATE";
+		
+		
+	    ofstream output;
+		
 		
 		//string cmdString = readCommand(sockfd);
 		
@@ -125,31 +161,46 @@ void* processConnection(void *arg) {
 		// *******************************************************
 		switch (command) {
 		case HELO :
-			writeCommand(sockfd, "HELO\n");
+			writeCommand(sockfd, "250 Hello! You are connected to an SMTP complient server.\n");
 			cout << cmdString << endl;
 			break;
 		case MAIL :
 			//writeCommand(sockfd, string("Your Adress: ") + eAdress + string("\n"));
 			seenMAIL = 1;
-			reversePath = eAdress;
+			reversePath = argString;
 			//Reset paths
 	        seenRCPT = 0;
 	        seenDATA = 0;
 			forwardPath = "";
 	        //*messageBuffer = NULL;
 			cout << cmdString << endl;
+	        writeCommand(sockfd, "250 \n");
 			break;
 		case RCPT :
 		    //writeCommand(sockfd, string("Your're Sending To: ") + eAdress + string("\n"));
 			seenRCPT = 1;
-			forwardPath = eAdress;  
+			forwardPath = argString;  
 			cout << cmdString << endl;
-			writeCommand(sockfd, string("Your're Sending To: ") + eAdress + string("\n"));
+			//writeCommand(sockfd, string("Your're Sending To: ") + eAdress + string("\n"));
+	        writeCommand(sockfd, "250 \n");
 			break;
 		case DATA :
 		    data = readData(sockfd);
 			cout << cmdString << endl;
 			cout << data << endl;
+			
+	
+			
+			//Write to file
+	        output.open(getAdressName(reversePath).c_str(), std::ios_base::app);
+	        output << "Return-Path: " << reversePath << endl;
+	        output << "Delivered-To: " << reversePath << endl;
+	        output << "Date: " << date << endl;
+	        output << endl << data << endl;
+	        output.close();
+	        
+			
+			
 			break;
 		case RSET :
 			//Reset paths
@@ -160,6 +211,7 @@ void* processConnection(void *arg) {
 			reversePath = "";
 	        //*messageBuffer = NULL;
 			cout << cmdString << endl;
+	        writeCommand(sockfd, "250 \n");
 			break;
 		case NOOP :
 			cout << cmdString << endl;
@@ -174,6 +226,9 @@ void* processConnection(void *arg) {
 			break;
 		}
 	}
+	
+	
+	writeCommand(sockfd, "221 \n");
 	
 	close(sockfd);
 
