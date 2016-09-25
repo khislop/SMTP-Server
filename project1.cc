@@ -18,6 +18,15 @@ string readCommand(int sockfd) {
 	return t;
 }
 
+void writeCommand(int sockfd, string message) { 
+	int count = message.length();
+	char* buf = new char[count];
+	//buf[2] = 'Y';
+	//strcpy(buf, tmp.c_str());
+	write(sockfd, message.c_str(), count);
+	return;
+}
+
 // ***************************************************************************
 // * Parse the command.
 // *  Read the string and find the command, returning the number we assoicated
@@ -28,9 +37,9 @@ int parseCommand(string commandString) {
 	//cout << "The math: " << (commandString == string("TEST")) << endl;
 	if(commandString == "HELO")
 		return 1;
-	if(commandString == "MAIL")
+	if(commandString == "MAIL FROM")
 		return 2;
-	if(commandString == "RCPT")
+	if(commandString == "RCPT TO")
 		return 3;
 	if(commandString == "DATA")
 		return 4;
@@ -44,6 +53,7 @@ int parseCommand(string commandString) {
 	return -1;
 		
 }
+
 
 // ***************************************************************************
 // * processConnection()
@@ -78,9 +88,17 @@ void* processConnection(void *arg) {
 		// *******************************************************
 		// * Read the command from the socket.
 		// *******************************************************
-		string cmdString = readCommand(sockfd);
+		string inString = readCommand(sockfd);
+		int pos = inString.find(':');
 		
-		//cout << "cmd string = " << cmdString << endl;
+		string cmdString = inString.substr(0, pos);
+		string argString = inString.substr(pos+1, inString.length()-pos);
+		string eAdress = argString.substr(1, argString.length() - 2);
+		
+		//string cmdString = readCommand(sockfd);
+		
+		cout << "cmd string = " << cmdString << endl;
+		cout << "arg string = " << argString << endl;
 
 		// *******************************************************
 		// * Parse the command.
@@ -94,18 +112,36 @@ void* processConnection(void *arg) {
 		// *******************************************************
 		switch (command) {
 		case HELO :
+			writeCommand(sockfd, "HELO\n");
 			cout << cmdString << endl;
 			break;
 		case MAIL :
+			writeCommand(sockfd, string("Your Adress: ") + eAdress + string("\n"));
+			seenMAIL = 1;
+			reversePath = eAdress;
+			//Reset paths
+	        seenRCPT = 0;
+	        seenDATA = 0;
+			forwardPath = "";
 			cout << cmdString << endl;
 			break;
 		case RCPT :
+		    writeCommand(sockfd, string("Your're Sending To: ") + eAdress + string("\n"));
+			seenRCPT = 1;
+			forwardPath = eAdress;
 			cout << cmdString << endl;
 			break;
 		case DATA :
+		    
 			cout << cmdString << endl;
 			break;
 		case RSET :
+		    seenMAIL = 0;
+			forwardPath = "";
+			//Reset paths
+	        seenRCPT = 0;
+	        seenDATA = 0;
+			reversePath = "";
 			cout << cmdString << endl;
 			break;
 		case NOOP :
