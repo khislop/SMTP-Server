@@ -1,7 +1,7 @@
 #include "includes.h"
 
 #define MAXLINE 1024
-#define PORT 9315
+#define PORT 9316
 #define DEBUG 1
 
 // ***************************************************************************
@@ -11,6 +11,7 @@
 string readCommand(int sockfd) { 
 	int count = 400;
 	char* buf = new char[count];
+	bzero(buf, count);
 	read(sockfd, buf, count);
 	string temp = string(buf);
 	string t = temp.substr(0, temp.size()-2);
@@ -21,6 +22,7 @@ string readCommand(int sockfd) {
 string readLine(int sockfd) { 
 	int count = 400;
 	char* buf = new char[count];
+	bzero(buf, count);
 	read(sockfd, buf, count);
 	string t = string(buf);
 	//string t = temp.substr(0, temp.size()-2);
@@ -65,6 +67,9 @@ void writeToFile(string adress, string data){
 	output << "This is a test" << endl;
 }
 
+string getTimeString(){
+    
+}
 
 // ***************************************************************************
 // * Parse the command.
@@ -120,6 +125,7 @@ void* processConnection(void *arg) {
 	string forwardPath = "";
 	string reversePath = "";
 	char *messageBuffer = NULL;
+	time_t currentTime;
 	
 	//Connected successfully
 	writeCommand(sockfd, "220 \n");
@@ -138,13 +144,16 @@ void* processConnection(void *arg) {
 		string argString = inString.substr(pos+1, inString.length()-pos);
 		string eAdress = argString.substr(1, argString.length() - 2);
 		string data = "";
-		string date = "TEST DATE";
+		currentTime = time(NULL);
+		string date = asctime(localtime(&currentTime));
+		cout << date << endl;
 		
 		
 	    ofstream output;
 		
 		
 		//string cmdString = readCommand(sockfd);
+		
 		
 		cout << "cmd string = " << cmdString << endl;
 		cout << "arg string = " << argString << endl;
@@ -173,6 +182,7 @@ void* processConnection(void *arg) {
 	        seenDATA = 0;
 			forwardPath = "";
 	        //*messageBuffer = NULL;
+	        data = "";
 			cout << cmdString << endl;
 	        writeCommand(sockfd, "250 \n");
 			break;
@@ -185,6 +195,10 @@ void* processConnection(void *arg) {
 	        writeCommand(sockfd, "250 \n");
 			break;
 		case DATA :
+		    if(!(seenMAIL && seenRCPT)){
+		        writeCommand(sockfd, "Must first give a MAIL FROM and a RCPT TO.\n");
+		        break;
+		    }   
 		    data = readData(sockfd);
 			cout << cmdString << endl;
 			cout << data << endl;
@@ -192,11 +206,12 @@ void* processConnection(void *arg) {
 	
 			
 			//Write to file
-	        output.open(getAdressName(reversePath).c_str(), std::ios_base::app);
-	        output << "Return-Path: " << reversePath << endl;
-	        output << "Delivered-To: " << reversePath << endl;
-	        output << "Date: " << date << endl;
-	        output << endl << data << endl;
+	        output.open(getAdressName(forwardPath).c_str(), std::ios_base::app);
+	        //output << "Return-Path: " << reversePath << endl;
+	        //output << "Delivered-To: " << forwardPath << endl;
+	        //output << "Date: " << date << endl;
+	        output << "From " << reversePath << " " << date;
+	        output << data << endl;
 	        output.close();
 	        
 			
@@ -222,7 +237,8 @@ void* processConnection(void *arg) {
 			cout << cmdString << endl;
 			break;
 		default :
-			cout << "Unknown command (" << cmdString<< ")" << endl;
+			writeCommand(sockfd, "Unknown command (" + cmdString + ")\n");
+			cout << "Unknown command (" << cmdString << ")" << endl;
 			break;
 		}
 	}
@@ -329,7 +345,7 @@ int main(int argc, char **argv) {
 		
 		
 		if (DEBUG)
-			cout << "Spawing new thread to handled connect on fd=" << connfd << endl;
+			cout << "Spawing new thread to handled connect on fd=" << *connfd << endl;
 
 		pthread_t* threadID = new pthread_t;
 		pthread_create(threadID, NULL, processConnection, (void *)connfd);
