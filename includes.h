@@ -4,6 +4,7 @@
 #include <sys/types.h>
 
 #include <arpa/inet.h>
+#include <arpa/nameser.h>
 
 #include <errno.h>
 
@@ -18,6 +19,7 @@
 #include <ctime>
 #include <netinet/in.h>
 #include <netdb.h> 
+#include <resolv.h>
 
 using namespace std;
 
@@ -39,3 +41,5 @@ string readCommand(int sockfd);
 int parseCommand(string commandString);
 void* processConnection(void *arg);
 string connectToServer(string forwardPath, string reversePath, string data);
+string parse_record (unsigned char *buffer, size_t r, const char *section, ns_sect s, int idx, ns_msg *m);
+string getAddress(string add);

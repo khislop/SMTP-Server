@@ -1,7 +1,7 @@
 #include "includes.h"
 
 #define MAXLINE 1024
-#define PORT 9314
+#define PORT 9316
 #define DEBUG 1
 
 // ***************************************************************************
@@ -266,7 +266,8 @@ string connectToServer(string forwardPath, string reversePath, string data){
 
     portno = atoi("25");
     sockfd = socket(AF_INET, SOCK_STREAM, 0);    
-    server = gethostbyname("exchange.mines.edu");
+    //server = gethostbyname("exchange.mines.edu");
+    server = gethostbyname(getAddress(getAdressHost(forwardPath)).c_str());
     if (server == NULL) {
         fprintf(stderr,"ERROR, no such host\n");
         exit(0);
@@ -289,7 +290,7 @@ string connectToServer(string forwardPath, string reversePath, string data){
     code = readCommand(sockfd);
     cout << code << endl;
     if(code.substr(0,3) != "250")
-        return "Failure: " + code;
+        //return "Failure: " + code;
     
     //Mail From
     writeCommand(sockfd, ("MAIL FROM:" + reversePath + "\r\n").c_str());
@@ -315,6 +316,147 @@ string connectToServer(string forwardPath, string reversePath, string data){
 	
 }  
 
+//Thank you to http://www.sourcexr.com/articles/2013/10/12/dns-records-query-with-res_query for getting the MX reccords.
+string getAddress(string add){
+    const size_t size = 1024;
+    unsigned char buffer[size];
+
+    const char *host = add.c_str();
+
+    int r = res_query (host, C_IN, T_MX, buffer, size);
+    if (r == -1) {
+        std::cerr << h_errno << " " << hstrerror (h_errno) << "\n";
+        return "";
+    }
+    else {
+        if (r == static_cast<int> (size)) {
+            std::cerr << "Buffer too small reply truncated\n";
+            return "";
+        }
+    }
+
+    HEADER *hdr = reinterpret_cast<HEADER*> (buffer);
+
+    if (hdr->rcode != NOERROR) {
+
+        std::cerr << "Error: ";
+        switch (hdr->rcode) {
+        case FORMERR:
+            std::cerr << "Format error";
+            break;
+        case SERVFAIL:
+            std::cerr << "Server failure";
+            break;
+        case NXDOMAIN:
+            std::cerr << "Name error";
+            break;
+        case NOTIMP:
+            std::cerr << "Not implemented";
+            break;
+        case REFUSED:
+            std::cerr << "Refused";
+            break;
+        default:
+            std::cerr << "Unknown error";
+        }
+        return "";
+    }
+    
+    int question = ntohs (hdr->qdcount);
+    int answers = ntohs (hdr->ancount);
+    int nameservers = ntohs (hdr->nscount);
+    int addrrecords = ntohs (hdr->arcount);
+
+    std::cout << "Reply: question: " << question << ", answers: " << answers
+              << ", nameservers: " << nameservers
+              << ", address records: " << addrrecords << "\n";
+              
+              
+    ns_msg m;
+    int k = ns_initparse (buffer, r, &m);
+    if (k == -1) {
+        std::cerr << errno << " " << strerror (errno) << "\n";
+        return "";
+    }
+
+    for (int i = 0; i < question; ++i) {
+        ns_rr rr;
+        int k = ns_parserr (&m, ns_s_qd, i, &rr);
+        if (k == -1) {
+            std::cerr << errno << " " << strerror (errno) << "\n";
+            return "";
+        }
+        std::cout << "question " << ns_rr_name (rr) << " "
+                  << ns_rr_type (rr) << " " << ns_rr_class (rr) << "\n";
+    }
+    for (int i = 0; i < answers; ++i) {
+        return parse_record (buffer, r, "answers", ns_s_an, i, &m);
+        
+    }
+
+    for (int i = 0; i < nameservers; ++i) {
+        parse_record (buffer, r, "nameservers", ns_s_ns, i, &m);
+    }
+
+    for (int i = 0; i < addrrecords; ++i) {
+        parse_record (buffer, r, "addrrecords", ns_s_ar, i, &m);
+    }
+}
+
+string parse_record (unsigned char *buffer, size_t r,
+                   const char *section, ns_sect s,
+                   int idx, ns_msg *m) {
+
+    ns_rr rr;
+    int k = ns_parserr (m, s, idx, &rr);
+    if (k == -1) {
+        std::cerr << errno << " " << strerror (errno) << "\n";
+        return "";
+    }
+
+    std::cout << section << " " << ns_rr_name (rr) << " "
+              << ns_rr_type (rr) << " " << ns_rr_class (rr)
+              << ns_rr_ttl (rr) << " ";
+              
+    
+
+    const size_t size = NS_MAXDNAME;
+    unsigned char name[size];
+    int t = ns_rr_type (rr);
+    
+    
+
+    const u_char *data = ns_rr_rdata (rr);
+    if (t == T_MX) {
+        int pref = ns_get16 (data);
+        ns_name_unpack (buffer, buffer + r, data + sizeof (u_int16_t),
+                        name, size);
+        char name2[size];
+        ns_name_ntop (name, name2, size);
+        std::cout << pref << " " << name2;
+        
+        return name2;
+    }
+    else if (t == T_A) {
+        unsigned int addr = ns_get32 (data);
+        struct in_addr in;
+        in.s_addr = ntohl (addr);
+        char *a = inet_ntoa (in);
+        std::cout << a;
+    }
+    else if (t == T_NS) {
+        ns_name_unpack (buffer, buffer + r, data, name, size);
+        char name2[size];
+        ns_name_ntop (name, name2, size);
+        std::cout << name2;
+        
+    }
+    else {
+        std::cout << "unhandled record";
+    }
+
+    std::cout << "\n";
+}
 
 
 
@@ -323,7 +465,6 @@ string connectToServer(string forwardPath, string reversePath, string data){
 // ***************************************************************************
 int main(int argc, char **argv) {
 
-    //connectToServer("khislop@mines.edu", "khislop@mines.edu", "From: Kel\r\nTo: alsokel\r\nSubject: test3\r\nLine 1\r\nLine 2\r\n");
 
     if (argc != 1) {
         cout << "useage " << argv[0] << endl;
