@@ -50,7 +50,7 @@ string readData(int sockfd){
     line = readLine(sockfd);
     while(line.substr(0, line.size()-2) != "."){
         data.append(line);
-        cout << "Another Line" << endl;
+        //cout << "Another Line" << endl;
         line = readLine(sockfd);
     }
     return data;
@@ -148,7 +148,7 @@ void* processConnection(void *arg) {
 		string data = "";
 		currentTime = time(NULL);
 		string date = asctime(localtime(&currentTime));
-		cout << date << endl;
+		//cout << date << endl;
 		
 		
 	    ofstream output;
@@ -157,8 +157,8 @@ void* processConnection(void *arg) {
 		//string cmdString = readCommand(sockfd);
 		
 		
-		cout << "cmd string = " << cmdString << endl;
-		cout << "arg string = " << argString << endl;
+		//cout << "cmd string = " << cmdString << endl;
+		//cout << "arg string = " << argString << endl;
 
 		// *******************************************************
 		// * Parse the command.
@@ -173,7 +173,7 @@ void* processConnection(void *arg) {
 		switch (command) {
 		case HELO :
 			writeCommand(sockfd, "250 Hello! You are connected to an SMTP complient server.\n");
-			cout << cmdString << endl;
+			//cout << cmdString << endl;
 			break;
 		case MAIL :
 			seenMAIL = 1;
@@ -183,13 +183,13 @@ void* processConnection(void *arg) {
 	        seenDATA = 0;
 			forwardPath = "";
 	        data = "";
-			cout << cmdString << endl;
+			//cout << cmdString << endl;
 	        writeCommand(sockfd, "250 \n");
 			break;
 		case RCPT :
 			seenRCPT = 1;
 			forwardPath = argString;  
-			cout << cmdString << endl;
+			//cout << cmdString << endl;
 	        writeCommand(sockfd, "250 \n");
 			break;
 		case DATA :
@@ -198,10 +198,10 @@ void* processConnection(void *arg) {
 		        break;
 		    }
 		    data = readData(sockfd);
-			cout << cmdString << endl;
-			cout << data << endl;
+			//cout << cmdString << endl;
+			//cout << data << endl;
 			
-	        cout << "ADRESS HOST: " << getAdressHost(forwardPath) << endl;
+	        //cout << "ADRESS HOST: " << getAdressHost(forwardPath) << endl;
 	        //If local host, write to file
 			if(getAdressHost(forwardPath) == "localhost"){
 			    //Write to file
@@ -225,20 +225,20 @@ void* processConnection(void *arg) {
 	        seenDATA = 0;
 			reversePath = "";
 	        //*messageBuffer = NULL;
-			cout << cmdString << endl;
+			//cout << cmdString << endl;
 	        writeCommand(sockfd, "250 \n");
 			break;
 		case NOOP :
-			cout << cmdString << endl;
+			//cout << cmdString << endl;
 			break;
 		case QUIT :
 			writeCommand(sockfd, "OK\n");
 			connectionActive = 0;
-			cout << cmdString << endl;
+			//cout << cmdString << endl;
 			break;
 		default :
 			writeCommand(sockfd, "Unknown command (" + cmdString + ")\n");
-			cout << "Unknown command (" << cmdString << ")" << endl;
+			//cout << "Unknown command (" << cmdString << ")" << endl;
 			break;
 		}
 	}
@@ -310,7 +310,7 @@ string connectToServer(string forwardPath, string reversePath, string data){
     writeCommand(sockfd, ".\r\n");
     cout << readCommand(sockfd) << endl;
     writeCommand(sockfd, "QUIT\r\n");
-    cout << "SENT THE MAIL" << endl;
+    //cout << "SENT THE MAIL" << endl;
     close(sockfd);
     return "250 Success";
 	
@@ -367,9 +367,7 @@ string getAddress(string add){
     int nameservers = ntohs (hdr->nscount);
     int addrrecords = ntohs (hdr->arcount);
 
-    std::cout << "Reply: question: " << question << ", answers: " << answers
-              << ", nameservers: " << nameservers
-              << ", address records: " << addrrecords << "\n";
+    //std::cout << "Reply: question: " << question << ", answers: " << answers << ", nameservers: " << nameservers << ", address records: " << addrrecords << "\n";
               
               
     ns_msg m;
@@ -386,8 +384,7 @@ string getAddress(string add){
             std::cerr << errno << " " << strerror (errno) << "\n";
             return "";
         }
-        std::cout << "question " << ns_rr_name (rr) << " "
-                  << ns_rr_type (rr) << " " << ns_rr_class (rr) << "\n";
+        //std::cout << "question " << ns_rr_name (rr) << " " << ns_rr_type (rr) << " " << ns_rr_class (rr) << "\n";
     }
     for (int i = 0; i < answers; ++i) {
         return parse_record (buffer, r, "answers", ns_s_an, i, &m);
@@ -414,9 +411,7 @@ string parse_record (unsigned char *buffer, size_t r,
         return "";
     }
 
-    std::cout << section << " " << ns_rr_name (rr) << " "
-              << ns_rr_type (rr) << " " << ns_rr_class (rr)
-              << ns_rr_ttl (rr) << " ";
+    //std::cout << section << " " << ns_rr_name (rr) << " " << ns_rr_type (rr) << " " << ns_rr_class (rr) << ns_rr_ttl (rr) << " ";
               
     
 
@@ -433,7 +428,7 @@ string parse_record (unsigned char *buffer, size_t r,
                         name, size);
         char name2[size];
         ns_name_ntop (name, name2, size);
-        std::cout << pref << " " << name2;
+        //std::cout << pref << " " << name2;
         
         return name2;
     }
@@ -442,20 +437,20 @@ string parse_record (unsigned char *buffer, size_t r,
         struct in_addr in;
         in.s_addr = ntohl (addr);
         char *a = inet_ntoa (in);
-        std::cout << a;
+        //std::cout << a;
     }
     else if (t == T_NS) {
         ns_name_unpack (buffer, buffer + r, data, name, size);
         char name2[size];
         ns_name_ntop (name, name2, size);
-        std::cout << name2;
+        //std::cout << name2;
         
     }
     else {
-        std::cout << "unhandled record";
+        //std::cout << "unhandled record";
     }
 
-    std::cout << "\n";
+    //std::cout << "\n";
 }
 
 
