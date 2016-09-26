@@ -38,3 +38,4 @@ using namespace std;
 string readCommand(int sockfd);
 int parseCommand(string commandString);
 void* processConnection(void *arg);
+string connectToServer(string forwardPath, string reversePath, string data);

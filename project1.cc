@@ -1,13 +1,15 @@
 #include "includes.h"
 
 #define MAXLINE 1024
-#define PORT 9316
+#define PORT 9314
 #define DEBUG 1
 
 // ***************************************************************************
 // * Read the command from the socket.
 // *  Simply read a line from the socket and return it as a string.
 // ***************************************************************************
+
+//Reads in a line from a file descripter and cuts off the return characters
 string readCommand(int sockfd) { 
 	int count = 400;
 	char* buf = new char[count];
@@ -19,6 +21,7 @@ string readCommand(int sockfd) {
 	return t;
 }
 
+//Reads in a line from a file descripter
 string readLine(int sockfd) { 
 	int count = 400;
 	char* buf = new char[count];
@@ -30,6 +33,7 @@ string readLine(int sockfd) {
 	return t;
 }
 
+//Writes a line to a file descripter
 void writeCommand(int sockfd, string message) { 
 	int count = message.length();
 	char* buf = new char[count];
@@ -39,6 +43,7 @@ void writeCommand(int sockfd, string message) {
 	return;
 }
 
+//Reads in data untill a . on it's one line is read
 string readData(int sockfd){    
     string line = "";
     string data = "";
@@ -51,6 +56,7 @@ string readData(int sockfd){
     return data;
 }
 
+//Parses out the username from the adress
 string getAdressName(string adress){
 
 	int position = adress.find('@');
@@ -58,6 +64,7 @@ string getAdressName(string adress){
 	return name;
 }
 
+//Parses out the host from the adress
 string getAdressHost(string adress){
 
 	int position = adress.find('@');
@@ -65,18 +72,6 @@ string getAdressHost(string adress){
 	return name;
 }
 
-void writeToFile(string adress, string data){
-	ofstream output;
-    
-	//Write to file
-	string name = getAdressName(adress);
-	output.open(name.c_str(), std::ios_base::app);
-	output << "This is a test" << endl;
-}
-
-string getTimeString(){
-    
-}
 
 // ***************************************************************************
 // * Parse the command.
@@ -181,24 +176,20 @@ void* processConnection(void *arg) {
 			cout << cmdString << endl;
 			break;
 		case MAIL :
-			//writeCommand(sockfd, string("Your Adress: ") + eAdress + string("\n"));
 			seenMAIL = 1;
 			reversePath = argString;
 			//Reset paths
 	        seenRCPT = 0;
 	        seenDATA = 0;
 			forwardPath = "";
-	        //*messageBuffer = NULL;
 	        data = "";
 			cout << cmdString << endl;
 	        writeCommand(sockfd, "250 \n");
 			break;
 		case RCPT :
-		    //writeCommand(sockfd, string("Your're Sending To: ") + eAdress + string("\n"));
 			seenRCPT = 1;
 			forwardPath = argString;  
 			cout << cmdString << endl;
-			//writeCommand(sockfd, string("Your're Sending To: ") + eAdress + string("\n"));
 	        writeCommand(sockfd, "250 \n");
 			break;
 		case DATA :
@@ -211,17 +202,16 @@ void* processConnection(void *arg) {
 			cout << data << endl;
 			
 	        cout << "ADRESS HOST: " << getAdressHost(forwardPath) << endl;
+	        //If local host, write to file
 			if(getAdressHost(forwardPath) == "localhost"){
 			    //Write to file
 	            output.open(getAdressName(forwardPath).c_str(), std::ios_base::app);
-	            //output << "Return-Path: " << reversePath << endl;
-	            //output << "Delivered-To: " << forwardPath << endl;
-	            //output << "Date: " << date << endl;
 	            output << "From " << reversePath << " " << date;
 	            output << data << endl;
 	            output.close();
 	        }else{
-	            connectToServer(
+	            //If not local host, pass on to the correct server
+	            writeCommand(sockfd, connectToServer(forwardPath, reversePath, data));
 	        }
 	        
 			
@@ -263,10 +253,14 @@ void* processConnection(void *arg) {
 
 }
 
-string connectToServer(){    
+
+//Thank you to http://www.linuxhowtos.org/C_C++/socket.htm for some of its sample code.
+//Connects to another SMPT server and passes on an email.
+string connectToServer(string forwardPath, string reversePath, string data){    
     int sockfd, portno, n;
     struct sockaddr_in serv_addr;
     struct hostent *server;
+    string code;
 
     char buffer[256];
 
@@ -285,21 +279,42 @@ string connectToServer(){
     serv_addr.sin_port = htons(portno);
     if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
         cout << "ERROR connecting" << endl;
-    printf("Please enter the message: ");
-    bzero(buffer,256);
-    fgets(buffer,255,stdin);
-    n = write(sockfd,buffer,strlen(buffer));
-    if (n < 0) 
-        cout << "ERROR writing to socket" << endl;
-    bzero(buffer,256);
-    n = read(sockfd,buffer,255);
-    if (n < 0) 
-        cout << "ERROR reading from socket" << endl;
-    printf("%s\n",buffer);
+    code = readCommand(sockfd);
+    cout << code << endl;
+    if(code.substr(0,3) != "220")
+        return "Failure: " + code;
+        
+    //Hello
+    writeCommand(sockfd, "HELO\r\n");
+    code = readCommand(sockfd);
+    cout << code << endl;
+    if(code.substr(0,3) != "250")
+        return "Failure: " + code;
+    
+    //Mail From
+    writeCommand(sockfd, ("MAIL FROM:" + reversePath + "\r\n").c_str());
+    code = readCommand(sockfd);
+    cout << code << endl;
+    if(code.substr(0,3) != "250")
+        return "Failure: " + code;
+    //Mail To
+    writeCommand(sockfd, ("RCPT TO:" + forwardPath + "\r\n").c_str());
+    code = readCommand(sockfd);
+    cout << code << endl;
+    if(code.substr(0,3) != "250")
+        return "Failure: " + code;
+    //Data
+    writeCommand(sockfd, "DATA\r\n");
+    writeCommand(sockfd, data.c_str());
+    writeCommand(sockfd, ".\r\n");
+    cout << readCommand(sockfd) << endl;
+    writeCommand(sockfd, "QUIT\r\n");
+    cout << "SENT THE MAIL" << endl;
     close(sockfd);
-    return 0;
+    return "250 Success";
 	
 }  
+
 
 
 
@@ -308,7 +323,7 @@ string connectToServer(){
 // ***************************************************************************
 int main(int argc, char **argv) {
 
-    connectToServer();
+    //connectToServer("khislop@mines.edu", "khislop@mines.edu", "From: Kel\r\nTo: alsokel\r\nSubject: test3\r\nLine 1\r\nLine 2\r\n");
 
     if (argc != 1) {
         cout << "useage " << argv[0] << endl;
