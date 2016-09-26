@@ -58,6 +58,13 @@ string getAdressName(string adress){
 	return name;
 }
 
+string getAdressHost(string adress){
+
+	int position = adress.find('@');
+	string name = adress.substr(position + 1, adress.length() - position - 2);
+	return name;
+}
+
 void writeToFile(string adress, string data){
 	ofstream output;
     
@@ -198,21 +205,24 @@ void* processConnection(void *arg) {
 		    if(!(seenMAIL && seenRCPT)){
 		        writeCommand(sockfd, "Must first give a MAIL FROM and a RCPT TO.\n");
 		        break;
-		    }   
+		    }
 		    data = readData(sockfd);
 			cout << cmdString << endl;
 			cout << data << endl;
 			
-	
-			
-			//Write to file
-	        output.open(getAdressName(forwardPath).c_str(), std::ios_base::app);
-	        //output << "Return-Path: " << reversePath << endl;
-	        //output << "Delivered-To: " << forwardPath << endl;
-	        //output << "Date: " << date << endl;
-	        output << "From " << reversePath << " " << date;
-	        output << data << endl;
-	        output.close();
+	        cout << "ADRESS HOST: " << getAdressHost(forwardPath) << endl;
+			if(getAdressHost(forwardPath) == "localhost"){
+			    //Write to file
+	            output.open(getAdressName(forwardPath).c_str(), std::ios_base::app);
+	            //output << "Return-Path: " << reversePath << endl;
+	            //output << "Delivered-To: " << forwardPath << endl;
+	            //output << "Date: " << date << endl;
+	            output << "From " << reversePath << " " << date;
+	            output << data << endl;
+	            output.close();
+	        }else{
+	            connectToServer(
+	        }
 	        
 			
 			
@@ -253,6 +263,44 @@ void* processConnection(void *arg) {
 
 }
 
+string connectToServer(){    
+    int sockfd, portno, n;
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+
+    char buffer[256];
+
+    portno = atoi("25");
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);    
+    server = gethostbyname("exchange.mines.edu");
+    if (server == NULL) {
+        fprintf(stderr,"ERROR, no such host\n");
+        exit(0);
+    }
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *)server->h_addr, 
+         (char *)&serv_addr.sin_addr.s_addr,
+         server->h_length);
+    serv_addr.sin_port = htons(portno);
+    if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
+        cout << "ERROR connecting" << endl;
+    printf("Please enter the message: ");
+    bzero(buffer,256);
+    fgets(buffer,255,stdin);
+    n = write(sockfd,buffer,strlen(buffer));
+    if (n < 0) 
+        cout << "ERROR writing to socket" << endl;
+    bzero(buffer,256);
+    n = read(sockfd,buffer,255);
+    if (n < 0) 
+        cout << "ERROR reading from socket" << endl;
+    printf("%s\n",buffer);
+    close(sockfd);
+    return 0;
+	
+}  
+
 
 
 // ***************************************************************************
@@ -260,10 +308,12 @@ void* processConnection(void *arg) {
 // ***************************************************************************
 int main(int argc, char **argv) {
 
-       if (argc != 1) {
-                cout << "useage " << argv[0] << endl;
-                exit(-1);
-        }
+    connectToServer();
+
+    if (argc != 1) {
+        cout << "useage " << argv[0] << endl;
+        exit(-1);
+    }
 
 	// *******************************************************************
 	// * Creating the inital socket is the same as in a client.

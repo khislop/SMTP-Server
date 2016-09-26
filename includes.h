@@ -16,6 +16,8 @@
 #include <algorithm>
 #include <fstream>
 #include <ctime>
+#include <netinet/in.h>
+#include <netdb.h> 
 
 using namespace std;
 
