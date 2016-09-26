@@ -37,6 +37,7 @@ string readLine(int sockfd) {
 void writeCommand(int sockfd, string message) { 
 	int count = message.length();
 	char* buf = new char[count];
+	bzero(buf, count);
 	//buf[2] = 'Y';
 	//strcpy(buf, tmp.c_str());
 	write(sockfd, message.c_str(), count);
@@ -286,12 +287,11 @@ string connectToServer(string forwardPath, string reversePath, string data){
         return "Failure: " + code;
         
     //Hello
-    writeCommand(sockfd, "HELO\r\n");
+    writeCommand(sockfd, "HELO " + getAdressHost(reversePath) + "\r\n");
     code = readCommand(sockfd);
     cout << code << endl;
     if(code.substr(0,3) != "250")
-        //return "Failure: " + code;
-    
+        return "Failure: " + code;
     //Mail From
     writeCommand(sockfd, ("MAIL FROM:" + reversePath + "\r\n").c_str());
     code = readCommand(sockfd);
@@ -312,7 +312,7 @@ string connectToServer(string forwardPath, string reversePath, string data){
     writeCommand(sockfd, "QUIT\r\n");
     //cout << "SENT THE MAIL" << endl;
     close(sockfd);
-    return "250 Success";
+    return "250 Success\r\n";
 	
 }  
 
