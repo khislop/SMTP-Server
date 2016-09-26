@@ -1,7 +1,7 @@
 #include "includes.h"
 
 #define MAXLINE 1024
-#define PORT 9316
+#define PORT 9315
 #define DEBUG 1
 
 // ***************************************************************************
@@ -210,6 +210,7 @@ void* processConnection(void *arg) {
 	            output << "From " << reversePath << " " << date;
 	            output << data << endl;
 	            output.close();
+	            writeCommand(sockfd, "250 Success\r\n");
 	        }else{
 	            //If not local host, pass on to the correct server
 	            writeCommand(sockfd, connectToServer(forwardPath, reversePath, data));
